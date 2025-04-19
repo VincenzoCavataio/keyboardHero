@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JS‑Hero Clone</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="wrapper">
+      <!-- HUD punteggi -->
+      <section id="hud" class="block-row">
+        <span id="highDisplay">High Score: 0</span>
+        <span id="scoreDisplay" class="grow">Score: 0</span>
+        <span id="hitInfo">—</span>
+      </section>
+
+      <!-- Barre Life e Bonus -->
+      <section id="statusRow" class="block-row center">
+        <div id="lifeContainer" class="meter">
+          <div id="lifeFill" class="fill life"></div>
+        </div>
+        <span id="lifeValue" class="value-label">10 / 10</span>
+
+        <div id="bonusContainer" class="meter">
+          <div id="bonusFill" class="fill bonus"></div>
+        </div>
+        <span id="bonusHint" class="hint">(BONUS : press B)</span>
+      </section>
+
+      <!-- File picker (MP3 + JSON) -->
+      <section class="block-row center">
+        <label class="picker-label">
+          Choose MP3 + JSON
+          <input type="file" id="songFile" accept=".mp3,.json" multiple />
+        </label>
+      </section>
+
+      <!-- Canvas -->
+      <canvas id="gameCanvas" width="800" height="600" tabindex="0"></canvas>
+
+      <!-- Combo / multiplier -->
+      <section id="subHud" class="block-row center">
+        <span id="comboDisplay">Combo: 0</span>
+        <span id="multiplierDisplay">1×</span>
+      </section>
+
+      <!-- Key labels -->
+      <section id="keyLabels" class="block-row wide">
+        <div class="keyLabel lane0">A</div>
+        <div class="keyLabel lane1">S</div>
+        <div class="keyLabel lane2">D</div>
+        <div class="keyLabel lane3">F</div>
+        <div class="keyLabel lane4">G</div>
+      </section>
+    </main>
+
+    <!-- audio -->
+    <audio id="audioPlayer" preload="auto"></audio>
+
+    <!-- modale risultato -->
+    <div id="resultModal" class="modal hidden">
+      <div class="modal-content">
+        <h2>Song Complete!</h2>
+        <p id="modalScore"></p>
+        <p id="modalAcc"></p>
+        <ul id="modalBreak"></ul>
+        <button id="newSongBtn">Choose another song</button>
+      </div>
+    </div>
+
+    <script type="module" src="js/game.js"></script>
+  </body>
+</html>
