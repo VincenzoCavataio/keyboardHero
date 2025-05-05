@@ -1,3 +1,5 @@
+// note.js — Note rendering and logic for Guitar-Hero-Lite (rounded corners)
+
 export const NOTE_TYPES = {
   NORMAL: "normal",
   HOPO: "hopo",
@@ -17,84 +19,146 @@ const LANE_COUNT = 5;
 const HIT_WINDOW = 100; // ms before/after planned hit time
 const NOTE_HEIGHT = 24;
 const NOTE_WIDTH = 80;
+const CORNER_RADIUS = 6; // radius for rounding corners of notes
+
+/**
+ * Draws a filled rounded rectangle (and optional stroke) on the canvas.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} x - Top-left x
+ * @param {number} y - Top-left y
+ * @param {number} width
+ * @param {number} height
+ * @param {number} radius
+ */
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  ctx.fill();
+  // if a stroke style is set, stroke the path
+  if (ctx.strokeStyle && ctx.lineWidth) ctx.stroke();
+}
 
 export class Note {
   constructor({ time, lane, type = NOTE_TYPES.NORMAL, duration = 0 }) {
-    this.time = time; // scheduled start (ms from song start)
-    this.lane = lane; // 0‑4
+    this.time = time; // start time
+    this.lane = lane;
     this.type = type;
-    this.duration = duration; // for LONG notes
+    this.duration = duration; // only for LONG notes
     this.hit = false;
     this.missed = false;
+    this.holding = false;
+    this.completed = false;
   }
 
-  /**
-   * Compute y‑position based on current songTime (ms) and note speed.
-   */
   getScreenY(songTime, pixelsPerMs, canvasHeight) {
     const delta = this.time - songTime;
     return canvasHeight - delta * pixelsPerMs - NOTE_HEIGHT;
   }
 
-  checkHit(songTime, lastHitSuccessful, keyPressed, strumPressed) {
-    if (this.hit || this.missed) return false;
-    const diff = Math.abs(songTime - this.time);
-    let requiresStrum = this.type === NOTE_TYPES.NORMAL;
-    if (this.type === NOTE_TYPES.HOPO) {
-      requiresStrum = !lastHitSuccessful;
-    }
-    if (diff <= HIT_WINDOW) {
-      if (keyPressed && (!requiresStrum || strumPressed)) {
-        this.hit = true;
-        return true;
+  checkHit(
+    songTime,
+    lastHitSuccessful,
+    keyPressed,
+    strumPressed,
+    onKeyRelease
+  ) {
+    if (this.missed || this.completed)
+      return { startHit: false, endHit: false };
+    // Instant notes
+    if (this.type !== NOTE_TYPES.LONG) {
+      const diff = Math.abs(songTime - this.time);
+      if (diff <= HIT_WINDOW && keyPressed) {
+        const needsStrum =
+          this.type === NOTE_TYPES.NORMAL ||
+          (this.type === NOTE_TYPES.HOPO && !lastHitSuccessful);
+        if (!needsStrum || strumPressed) {
+          this.hit = true;
+          return { startHit: true, endHit: false };
+        }
       }
+      if (!this.hit && songTime - this.time > HIT_WINDOW) this.missed = true;
+      return { startHit: false, endHit: false };
     }
-    return false;
-  }
 
-  checkMiss(songTime) {
-    if (!this.hit && !this.missed && songTime - this.time > HIT_WINDOW) {
-      this.missed = true;
-      return true;
+    // LONG-note start
+    if (!this.holding) {
+      const diffStart = Math.abs(songTime - this.time);
+      if (diffStart <= HIT_WINDOW && keyPressed) {
+        this.holding = true;
+        return { startHit: true, endHit: false };
+      }
+      if (songTime - this.time > HIT_WINDOW) this.missed = true;
+      return { startHit: false, endHit: false };
     }
-    return false;
+
+    // LONG-note end
+    const endTime = this.time + this.duration;
+    if (this.holding) {
+      if (onKeyRelease) {
+        const diffEnd = Math.abs(songTime - endTime);
+        if (diffEnd <= HIT_WINDOW) {
+          this.completed = true;
+          this.hit = true;
+          return { startHit: false, endHit: true };
+        }
+        if (songTime < endTime - HIT_WINDOW) this.missed = true;
+      }
+      if (songTime - endTime > HIT_WINDOW) this.missed = true;
+    }
+    return { startHit: false, endHit: false };
   }
 
   draw(ctx, songTime, pixelsPerMs, canvasWidth, canvasHeight) {
+    // Skip if completed or instant missed/hit
+    if (
+      (this.type !== NOTE_TYPES.LONG && (this.missed || this.hit)) ||
+      this.completed
+    )
+      return;
     const laneWidth = canvasWidth / LANE_COUNT;
     const x = this.lane * laneWidth + (laneWidth - NOTE_WIDTH) / 2;
     const y = this.getScreenY(songTime, pixelsPerMs, canvasHeight);
-
     if (y > canvasHeight || y < -NOTE_HEIGHT) return;
 
     ctx.save();
-    ctx.fillStyle = LANE_COLORS[this.lane];
+    // Determine fill color: lane or gold if star power
+    const fillColor =
+      window.state && window.state.bonusEnd ? "gold" : LANE_COLORS[this.lane];
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = this.type === NOTE_TYPES.HOPO ? "#fff" : "";
+    ctx.lineWidth = this.type === NOTE_TYPES.HOPO ? 3 : 0;
 
-    if (this.type === NOTE_TYPES.HOPO) {
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 3;
-    } else if (this.type === NOTE_TYPES.LONG) {
-      ctx.fillStyle = "#9b59b6";
-    } else if (this.type === NOTE_TYPES.BONUS) {
-      ctx.fillStyle = "#f39c12";
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "#f39c12";
-    }
-
-    ctx.fillRect(x, y, NOTE_WIDTH, NOTE_HEIGHT);
-    if (this.type === NOTE_TYPES.HOPO) {
-      ctx.strokeRect(x, y, NOTE_WIDTH, NOTE_HEIGHT);
-    }
-
-    // Tail for LONG note
-    if (this.type === NOTE_TYPES.LONG && this.duration > 0) {
-      const endY = this.getScreenY(
-        this.time + this.duration,
-        pixelsPerMs,
-        canvasHeight
+    // Draw tail for LONG
+    if (this.type === NOTE_TYPES.LONG) {
+      const tailHeight = this.duration * pixelsPerMs;
+      drawRoundedRect(
+        ctx,
+        x + NOTE_WIDTH / 4,
+        y - tailHeight,
+        NOTE_WIDTH / 2,
+        tailHeight,
+        CORNER_RADIUS
       );
-      ctx.fillRect(x + NOTE_WIDTH / 4, endY, NOTE_WIDTH / 2, y - endY);
     }
+
+    // Draw head
+    drawRoundedRect(ctx, x, y, NOTE_WIDTH, NOTE_HEIGHT, CORNER_RADIUS);
+
+    // Fade out missed LONG
+    if (this.type === NOTE_TYPES.LONG && this.missed) {
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      drawRoundedRect(ctx, x, y, NOTE_WIDTH, NOTE_HEIGHT, CORNER_RADIUS);
+    }
+
     ctx.restore();
   }
 }
