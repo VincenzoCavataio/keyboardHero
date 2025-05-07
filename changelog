@@ -1,0 +1,11 @@
+=========================================================================
+Guitar-Hero-Lite (Refactored + Mobile Touch + Default Sample + Countdown)
+=========================================================================
+© 2025 — MIT-ish license. Use freely & have fun!
+
+Versione leggibile e commentata:
+
+- Caricamento automatico di assets/sample/test.mp3 e test.json
+- Countdown 3-2-1-GO prima di avviare audio e gioco
+- Interfaccia touch per mobile sulle label A-S-D-F-G
+- # Effetti glow e particelle dorate come prima

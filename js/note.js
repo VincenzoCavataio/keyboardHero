@@ -1,4 +1,4 @@
-// note.js — Note rendering and logic for Guitar-Hero-Lite (rounded corners)
+// note.js â€” Note rendering and logic for Guitar-Hero-Lite (rounded corners)
 
 export const NOTE_TYPES = {
   NORMAL: "normal",

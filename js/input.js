@@ -1,56 +1,106 @@
+/*--------------------------------------------------------------------
+  InputManager â€” gestione keypress + mobile touch sui keyLabel
+--------------------------------------------------------------------*/
 export class InputManager {
+  /**
+   * @param {NodeListOf<HTMLElement>} labels â€” elementi .keyLabel in ordine di lane
+   */
   constructor(labels) {
-    this.labels = labels;
-    this.pressed = {};
+    this.labels = Array.from(labels || []);
+    this.pressed = Array(this.labels.length).fill(false);
     this.strumPressed = false;
-    // mappa i keycode alle lanes
-    this.keyMap = {
-      KeyA: 0,
-      KeyS: 1,
-      KeyD: 2,
-      KeyF: 3,
-      KeyG: 4,
-      // se hai una strum-key mettila qui
-    };
 
-    // keyboard
-    window.addEventListener("keydown", (e) => this.onKey(e, true));
-    window.addEventListener("keyup", (e) => this.onKey(e, false));
-
-    // ==== TOUCH SUPPORT ====
-    // per ogni etichetta A/S/D/F/G, facciamo il bind di touchstart/end
-    Object.entries(this.keyMap).forEach(([code, lane]) => {
-      const lbl = labels[lane];
-      if (!lbl) return;
-      lbl.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        this.onKey({ code }, true);
-      });
-      lbl.addEventListener("touchend", (e) => {
-        e.preventDefault();
-        this.onKey({ code }, false);
-      });
-    });
+    // ascolto tastiera
+    window.addEventListener("keydown", this._onKeyDown.bind(this));
+    window.addEventListener("keyup", this._onKeyUp.bind(this));
   }
 
-  onKey(e, pressed) {
-    const lane = this.keyMap[e.code];
-    if (lane === undefined) return;
-
-    this.pressed[lane] = pressed;
-    // se hai una chiave “strum” aggiungi qui la gestione di this.strumPressed
-
-    // aggiorna lo stile della label
-    this.updateLabel(lane, pressed);
+  _onKeyDown(e) {
+    switch (e.code) {
+      case "KeyA":
+        this.pressLane(0);
+        break;
+      case "KeyS":
+        this.pressLane(1);
+        break;
+      case "KeyD":
+        this.pressLane(2);
+        break;
+      case "KeyF":
+        this.pressLane(3);
+        break;
+      case "KeyG":
+        this.pressLane(4);
+        break;
+      case "Space":
+      case "KeyB":
+        this.strumPressed = true;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
   }
 
-  isLanePressed(lane) {
-    return !!this.pressed[lane];
+  _onKeyUp(e) {
+    switch (e.code) {
+      case "KeyA":
+        this.releaseLane(0);
+        break;
+      case "KeyS":
+        this.releaseLane(1);
+        break;
+      case "KeyD":
+        this.releaseLane(2);
+        break;
+      case "KeyF":
+        this.releaseLane(3);
+        break;
+      case "KeyG":
+        this.releaseLane(4);
+        break;
+      case "Space":
+      case "KeyB":
+        this.strumPressed = false;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
   }
 
+  /**
+   * Simula pressione corsia
+   * @param {number} lane
+   */
+  pressLane(lane) {
+    this.pressed[lane] = true;
+    this.updateLabel(lane, true);
+  }
+
+  /**
+   * Simula rilascio corsia
+   * @param {number} lane
+   */
+  releaseLane(lane) {
+    this.pressed[lane] = false;
+    this.updateLabel(lane, false);
+  }
+
+  /**
+   * Toggle classe visuale sul label (guardato per evitare undefined)
+   */
   updateLabel(lane, pressed) {
     const lbl = this.labels[lane];
     if (!lbl) return;
     lbl.classList.toggle("pressed", pressed);
+  }
+
+  /**
+   * @param {number} lane
+   * @returns {boolean}
+   */
+  isLanePressed(lane) {
+    return !!this.pressed[lane];
   }
 }

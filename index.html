@@ -3,29 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JS‑Hero Clone</title>
+    <title>JS-Hero Clone</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main id="wrapper">
-      <!-- HUD punteggi -->
-      <section id="hud" class="block-row">
-        <span id="highDisplay">High Score: 0</span>
-        <span id="scoreDisplay" class="grow">Score: 0</span>
-        <span id="hitInfo">—</span>
-      </section>
-
       <!-- Barre Life e Bonus -->
       <section id="statusRow" class="block-row center">
-        <div id="lifeContainer" class="meter">
-          <div id="lifeFill" class="fill life"></div>
+        <div class="group">
+          <h2 id="lifeValue" class="value-label">Life</h2>
+          <div id="lifeContainer" class="meter">
+            <div id="lifeFill" class="fill life"></div>
+          </div>
         </div>
-        <span id="lifeValue" class="value-label">10 / 10</span>
-
-        <div id="bonusContainer" class="meter">
-          <div id="bonusFill" class="fill bonus"></div>
+        <div class="group">
+          <h2 id="bonusHint" class="hint">Bonus [Press B]</h2>
+          <div id="bonusContainer" class="meter">
+            <div id="bonusFill" class="fill bonus"></div>
+          </div>
         </div>
-        <span id="bonusHint" class="hint">(BONUS : press B)</span>
       </section>
 
       <!-- File picker (MP3 + JSON) -->
@@ -39,10 +35,14 @@
       <!-- Canvas -->
       <canvas id="gameCanvas" width="800" height="600" tabindex="0"></canvas>
 
-      <!-- Combo / multiplier -->
-      <section id="subHud" class="block-row center">
+      <!-- HUD punteggi -->
+      <section id="hud" class="block-row">
+        <span id="highDisplay">High Score: 0</span>
+        <span id="scoreDisplay" class="grow">Score: 0</span>
         <span id="comboDisplay">Combo: 0</span>
-        <span id="multiplierDisplay">1×</span>
+
+        <span id="hitInfo">—</span>
+        <span id="multiplierDisplay">1x</span>
       </section>
     </main>
 
@@ -56,7 +56,7 @@
         <p id="modalScore"></p>
         <p id="modalAcc"></p>
         <ul id="modalBreak"></ul>
-        <button id="newSongBtn">Choose another song</button>
+        <button id="newSongBtn">Restart</button>
       </div>
     </div>
 

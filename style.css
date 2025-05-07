@@ -38,7 +38,6 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
 }
 #hud span {
   font-size: 1.2rem;
@@ -69,7 +68,7 @@ body {
 /* Status Bars */
 #statusRow {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   gap: 16px;
 }
@@ -218,4 +217,11 @@ canvas#gameCanvas {
 .start-btn {
   position: relative;
   top: 400px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  gap: 10px;
 }

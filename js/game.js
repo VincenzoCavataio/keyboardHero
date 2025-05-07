@@ -1,189 +1,41 @@
-/*====================================================================
-  main.js — Guitar-Hero-Lite (Refactored + Mobile Touch + Default Sample + Countdown)
-======================================================================
-© 2025  — MIT-ish license. Use freely & have fun!
+import { NOTE_TYPES, LANE_COLORS, Note } from "./note.js";
+import {
+  BONUS_COST,
+  BONUS_DURATION,
+  BONUS_EXTENSION,
+  COMBO_LIFE_STEP,
+  LANES,
+  LANE_GAP,
+  MAX_LIFE,
+  NOTE_SPEED,
+  RECEPTOR_H,
+  RECEPTOR_Y,
+  SCORE_BAD,
+  SCORE_GOOD,
+  SCORE_PERFECT,
+  WINDOW_BAD,
+  WINDOW_GOOD,
+  WINDOW_PERFECT,
+} from "./constants.js";
+import {
+  audio,
+  canvas,
+  comboEl,
+  ctx,
+  modal,
+  multEl,
+  newBtn,
+  pickerLabel,
+  scoreEl,
+} from "./domElements.js";
+import { comboMgr, inputMgr, state } from "./state.js";
+import { hexToRgb } from "./utils.js";
+import { finishGame } from "./finishGame.js";
+import { flashHit, updateBonus, updateLife } from "./hud.js";
+import { drawCountdown, startCountdown } from "./countdown.js";
+import { spawnExplosion } from "./particicle.js";
 
-Versione leggibile e commentata:
-- Caricamento automatico di assets/sample/test.mp3 e test.json
-- Countdown 3-2-1-GO prima di avviare audio e gioco
-- Interfaccia touch per mobile sulle label A-S-D-F-G
-- Effetti glow e particelle dorate come prima
-====================================================================*/
-
-// 1. IMPORTS ------------------------------------------------------------------
-import { ComboManager } from "./combo.js"; // Gestione combo & moltiplicatori
-import { NOTE_TYPES, LANE_COLORS, Note } from "./note.js"; // Note e colori corsie
-import { InputManager } from "./input.js"; // Input tastiera + touch
-
-// 2. UTILITY ------------------------------------------------------------------
-/**
- * Converte un colore HEX (#rrggbb) in stringa "r,g,b"
- */
-function hexToRgb(hex) {
-  const [r, g, b] = hex
-    .replace("#", "")
-    .match(/.{2}/g)
-    .map((h) => parseInt(h, 16));
-  return `${r},${g},${b}`;
-}
-
-// 3. RIFERIMENTI DOM ----------------------------------------------------------
-const $ = (sel) => document.querySelector(sel);
-const canvas = $("#gameCanvas");
-const ctx = canvas.getContext("2d");
-// L'input file non verrà mai aperto: usiamo solo il pulsante per default
-const pickerLabel = $(".picker-label"); // wrapper del pulsante "Upload song"
-const audio = $("#audioPlayer");
-const keyElems = document.querySelectorAll(".keyLabel");
-
-// HUD
-const scoreEl = $("#scoreDisplay");
-const highEl = $("#highDisplay");
-const lifeValEl = $("#lifeValue");
-const lifeFill = $("#lifeFill");
-const comboEl = $("#comboDisplay");
-const multEl = $("#multiplierDisplay");
-const hitInfo = $("#hitInfo");
-const bonusFill = $("#bonusFill");
-const modal = $("#resultModal");
-const mScore = $("#modalScore");
-const mAcc = $("#modalAcc");
-const mBreak = $("#modalBreak");
-const newBtn = $("#newSongBtn");
-
-// 4. COSTANTI DI GIOCO -------------------------------------------------------
-const LANES = 5;
-const LANE_GAP = 8; // Spazio ridotto tra corsie
-const NOTE_SPEED = 0.4; // px/ms
-const RECEPTOR_Y = canvas.height - 60;
-const RECEPTOR_H = 14;
-
-const WINDOW_PERFECT = 30;
-const WINDOW_GOOD = 70;
-const WINDOW_BAD = 120;
-
-const SCORE_PERFECT = 5;
-const SCORE_GOOD = 3;
-const SCORE_BAD = 1;
-
-const MAX_LIFE = 400;
-const COMBO_LIFE_STEP = 20;
-
-const BONUS_DURATION = 10000; // ms
-const BONUS_EXTENSION = 5000;
-const BONUS_COST = 40;
-
-const HIGH_KEY = "gh_highscore";
-
-// 5. STATO GIOCO -------------------------------------------------------------
-const inputMgr = new InputManager(keyElems);
-const comboMgr = new ComboManager();
-
-const state = {
-  // barre e punteggio
-  life: MAX_LIFE,
-  bonusMeter: 0,
-  bonusEnd: 0,
-
-  // note
-  notes: [],
-  totalNotes: 0,
-  score: 0,
-  hits: 0,
-  perfect: 0,
-  good: 0,
-  bad: 0,
-
-  // controllo ciclo
-  running: false,
-  startTime: 0,
-
-  // particelle
-  particles: [],
-
-  // countdown
-  countdownActive: false,
-  countdownValue: 0,
-  showGo: false,
-};
-
-let countdownInterval = null;
-
-// 6. HANDLER HUD -------------------------------------------------------------
-function updateLife() {
-  lifeValEl.textContent = `${state.life} / ${MAX_LIFE}`;
-  lifeFill.style.width = `${(state.life / MAX_LIFE) * 100}%`;
-}
-function updateBonus() {
-  if (state.bonusEnd) {
-    const pct =
-      (Math.max(state.bonusEnd - performance.now(), 0) / BONUS_DURATION) * 100;
-    bonusFill.style.width = `${pct}%`;
-  } else {
-    bonusFill.style.width = `${state.bonusMeter}%`;
-  }
-}
-
-let hitTimeout = null;
-function flashHit(text, cls) {
-  hitInfo.textContent = text;
-  hitInfo.className = cls;
-  hitInfo.style.opacity = 1;
-  clearTimeout(hitTimeout);
-  hitTimeout = setTimeout(() => (hitInfo.style.opacity = 0), 1000);
-}
-
-// 7. PARTICELLE -------------------------------------------------------------
-class Particle {
-  constructor(x, y, color) {
-    this.x = x;
-    this.y = y;
-    this.vx = (Math.random() - 0.5) * 2;
-    this.vy = -Math.random() * 6 - 4;
-    this.size = 10;
-    this.life = 520;
-    this.color = color;
-  }
-  update(dt) {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vy += 0.12;
-    this.size *= 0.96;
-    this.life -= dt;
-  }
-  draw(ctx) {
-    ctx.globalAlpha = Math.max(this.life / 520, 0);
-    ctx.fillStyle = this.color;
-    ctx.fillRect(
-      this.x - this.size / 2,
-      this.y - this.size / 2,
-      this.size,
-      this.size
-    );
-    ctx.globalAlpha = 1;
-  }
-}
-function spawnExplosion(lane) {
-  const laneW = (canvas.width - (LANES - 1) * LANE_GAP) / LANES;
-  const x = lane * (laneW + LANE_GAP) + laneW / 2;
-  const y = RECEPTOR_Y - 8;
-  // particelle standard (colori della corsia)
-  for (let i = 0; i < 28; i++) {
-    state.particles.push(new Particle(x, y, LANE_COLORS[lane]));
-  }
-  // particelle più grandi: colore di corsia di default, o gold se star-power attivo
-  const glowColor = state.bonusEnd ? "gold" : LANE_COLORS[lane];
-  for (let i = 0; i < 8; i++) {
-    const p = new Particle(x, y, glowColor);
-    p.size = 20;
-    p.vx = (Math.random() - 0.5) * 4;
-    p.vy = -Math.random() * 4 - 2;
-    p.life = 800;
-    state.particles.push(p);
-  }
-}
-
-// 8. BONUS (Star Power) ------------------------------------------------------
+// BONUS (Star Power) ------------------------------------------------------
 window.addEventListener("keydown", (e) => {
   if (e.code !== "KeyB") return;
   if (state.bonusEnd || state.bonusMeter < BONUS_COST) return;
@@ -192,35 +44,6 @@ window.addEventListener("keydown", (e) => {
   document.body.classList.add("bonus-active");
   updateBonus();
 });
-
-// 9. COUNTDOWN PRE-GAME ------------------------------------------------------
-/**
- * Avvia un conto alla rovescia 3-2-1-GO,
- * al termine richiama restartGame() e audio.play().
- */
-function startCountdown() {
-  state.countdownActive = true;
-  state.countdownValue = 3;
-  state.showGo = false;
-
-  countdownInterval = setInterval(() => {
-    if (state.countdownValue > 1) {
-      state.countdownValue--;
-    } else {
-      // da 1 -> mostra GO
-      clearInterval(countdownInterval);
-      state.countdownValue = 0;
-      state.showGo = true;
-      setTimeout(() => {
-        // fine GO: avvia gioco
-        state.countdownActive = false;
-        state.showGo = false;
-        restartGame();
-        audio.play();
-      }, 1000);
-    }
-  }, 1000);
-}
 
 // 10. HANDLER "UPLOAD SONG" ---------------------------------------------
 // Sempre carica sample/test.mp3 + test.json, niente file picker.
@@ -261,29 +84,6 @@ pickerLabel.addEventListener("click", async (e) => {
 });
 
 // 11. RESTART GAME ----------------------------------------------------------
-function restartGame() {
-  // Ripristina stato iniziale
-  Object.assign(state, {
-    life: MAX_LIFE,
-    bonusMeter: 0,
-    bonusEnd: 0,
-    score: 0,
-    hits: 0,
-    perfect: 0,
-    good: 0,
-    bad: 0,
-    running: true,
-    startTime: performance.now(),
-    particles: [],
-  });
-  comboMgr.registerMiss();
-  updateLife();
-  updateBonus();
-  scoreEl.textContent = "Score: 0";
-  comboEl.textContent = "Combo: 0";
-  multEl.textContent = "1×";
-  hitInfo.textContent = "";
-}
 
 // 12. MAIN LOOP --------------------------------------------------------------
 function gameLoop(timestamp) {
@@ -457,37 +257,7 @@ function drawFrame(songTime) {
   }
 }
 
-// 16. DRAW COUNTDOWN ---------------------------------------------------------
-function drawCountdown() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "rgba(0,0,0,0.7)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "gold";
-  ctx.font = "bold 120px sans-serif";
-  ctx.textAlign = "center";
-  const text = state.showGo ? "GO" : state.countdownValue;
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-}
-
-// 17. FINE GIOCO & MODAL ----------------------------------------------------
-function finishGame() {
-  state.running = false;
-  audio.pause();
-  const hs = Math.max(state.score, Number(localStorage.getItem(HIGH_KEY) || 0));
-  localStorage.setItem(HIGH_KEY, hs);
-  highEl.textContent = `High Score: ${hs}`;
-  const acc = ((state.hits / state.totalNotes) * 100).toFixed(1);
-  mScore.textContent = `Score: ${state.score}`;
-  mAcc.textContent = `Accuracy: ${acc}% (${state.hits}/${state.totalNotes})`;
-  mBreak.innerHTML =
-    `<li>Perfect: ${((state.perfect / state.hits) * 100).toFixed(1)}%</li>` +
-    `<li>Good:    ${((state.good / state.hits) * 100).toFixed(1)}%</li>` +
-    `<li>Bad:     ${((state.bad / state.hits) * 100).toFixed(1)}%</li>` +
-    `<li>Miss:    ${(100 - acc).toFixed(1)}%</li>`;
-  modal.classList.remove("hidden");
-}
-
-// 18. MODAL RESTART ----------------------------------------------------------
+// MODAL RESTART ----------------------------------------------------------
 newBtn.addEventListener("click", () => {
   modal.classList.add("hidden");
   pickerLabel.style.display = "inline-flex";
