@@ -17,3 +17,10 @@ export const BONUS_DURATION = 10000; // ms
 export const BONUS_EXTENSION = 5000;
 export const BONUS_COST = 40;
 export const HIGH_KEY = "gh_highscore";
+
+export const SCORE_LABELS = {
+  PERFECT: "PERFECT",
+  GOOD: "GOOD",
+  BAD: "BAD",
+  MISS: "MISS",
+};

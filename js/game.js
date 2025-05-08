@@ -2,16 +2,14 @@ import { NOTE_TYPES, LANE_COLORS, Note } from "./note.js";
 import {
   BONUS_COST,
   BONUS_DURATION,
-  BONUS_EXTENSION,
-  COMBO_LIFE_STEP,
   LANES,
   LANE_GAP,
-  MAX_LIFE,
   NOTE_SPEED,
   RECEPTOR_H,
   RECEPTOR_Y,
   SCORE_BAD,
   SCORE_GOOD,
+  SCORE_LABELS,
   SCORE_PERFECT,
   WINDOW_BAD,
   WINDOW_GOOD,
@@ -33,9 +31,11 @@ import { hexToRgb } from "./utils.js";
 import { finishGame } from "./finishGame.js";
 import { flashHit, updateBonus, updateLife } from "./hud.js";
 import { drawCountdown, startCountdown } from "./countdown.js";
-import { spawnExplosion } from "./particicle.js";
+import { handleHit } from "./hitHandler.js";
 
-// BONUS (Star Power) ------------------------------------------------------
+const { MISS, GOOD, PERFECT, BAD } = SCORE_LABELS;
+
+/** STAR POWER */
 window.addEventListener("keydown", (e) => {
   if (e.code !== "KeyB") return;
   if (state.bonusEnd || state.bonusMeter < BONUS_COST) return;
@@ -45,7 +45,7 @@ window.addEventListener("keydown", (e) => {
   updateBonus();
 });
 
-// 10. HANDLER "UPLOAD SONG" ---------------------------------------------
+/** UPLOAD SONG HANDLER */
 // Sempre carica sample/test.mp3 + test.json, niente file picker.
 pickerLabel.addEventListener("click", async (e) => {
   e.preventDefault();
@@ -83,9 +83,7 @@ pickerLabel.addEventListener("click", async (e) => {
   requestAnimationFrame(gameLoop);
 });
 
-// 11. RESTART GAME ----------------------------------------------------------
-
-// 12. MAIN LOOP --------------------------------------------------------------
+/** MAIN GAME LOOP */
 function gameLoop(timestamp) {
   // Durante il countdown mostriamo solo l'overlay
   if (state.countdownActive) {
@@ -107,7 +105,7 @@ function gameLoop(timestamp) {
   }
 }
 
-// 13. LOGIC UPDATE ----------------------------------------------------------
+/** LOGIC UPDATE */
 function updateLogic(songTime, now) {
   for (const note of state.notes) {
     if (note.hit || note.missed) continue;
@@ -119,26 +117,24 @@ function updateLogic(songTime, now) {
         ? comboMgr.combo === 0
         : note.type === NOTE_TYPES.NORMAL;
 
-    // Hit detection
+    /** Hit detection */
     if (pressed && (!needStrum || strum)) {
       if (diff <= WINDOW_PERFECT)
-        handleHit(note, SCORE_PERFECT, "PERFECT", "perfect", now);
+        handleHit(note, SCORE_PERFECT, PERFECT, "perfect", now);
       else if (diff <= WINDOW_GOOD)
-        handleHit(note, SCORE_GOOD, "GOOD", "good", now);
-      else if (diff <= WINDOW_BAD)
-        handleHit(note, SCORE_BAD, "BAD", "bad", now);
-    }
-    // Miss detection
-    else if (songTime > note.time + WINDOW_BAD) {
+        handleHit(note, SCORE_GOOD, GOOD, "good", now);
+      else if (diff <= WINDOW_BAD) handleHit(note, SCORE_BAD, BAD, "bad", now);
+    } else if (songTime > note.time + WINDOW_BAD) {
+      /** Miss detection */
       note.missed = true;
       state.life = Math.max(state.life - 1, 0);
       comboMgr.registerMiss();
-      flashHit("MISS", "miss");
+      flashHit(MISS, "miss");
       updateLife();
     }
   }
 
-  // Disattiva star power se scaduto
+  /** Disattiva star power se scaduto */
   if (state.bonusEnd && now >= state.bonusEnd) {
     state.bonusEnd = 0;
     document.body.classList.remove("bonus-active");
@@ -151,41 +147,7 @@ function updateLogic(songTime, now) {
   multEl.textContent = `${comboMgr.currentMultiplier}×`;
 }
 
-// 14. HIT HANDLER -----------------------------------------------------------
-function handleHit(note, baseScore, label, cls, now) {
-  note.hit = true;
-  state.hits++;
-  if (label === "PERFECT") state.perfect++;
-  else if (label === "GOOD") state.good++;
-  else state.bad++;
-
-  // Gestione bonus note
-  if (note.type === NOTE_TYPES.BONUS) {
-    if (state.bonusEnd) {
-      state.bonusEnd += BONUS_EXTENSION;
-    } else {
-      state.bonusMeter = Math.min(state.bonusMeter + 20, 100);
-    }
-  }
-
-  comboMgr.registerHit(false, now);
-  // Vita extra ogni COMBO_LIFE_STEP hit
-  if (
-    comboMgr.combo > 0 &&
-    comboMgr.combo % COMBO_LIFE_STEP === 0 &&
-    state.life < MAX_LIFE
-  ) {
-    state.life++;
-    updateLife();
-  }
-
-  const multiplier = comboMgr.currentMultiplier * (state.bonusEnd ? 2 : 1);
-  state.score += baseScore * multiplier;
-  spawnExplosion(note.lane);
-  flashHit(label, cls);
-}
-
-// 15. DRAW FRAME -------------------------------------------------------------
+/** DRAW FRAME */
 function drawFrame(songTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -257,7 +219,7 @@ function drawFrame(songTime) {
   }
 }
 
-// MODAL RESTART ----------------------------------------------------------
+/** RESTART MODAL */
 newBtn.addEventListener("click", () => {
   modal.classList.add("hidden");
   pickerLabel.style.display = "inline-flex";
