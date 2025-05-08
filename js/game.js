@@ -84,6 +84,7 @@ pickerLabel.addEventListener("click", async (e) => {
 });
 
 /** MAIN GAME LOOP */
+/** MAIN GAME LOOP */
 function gameLoop(timestamp) {
   // Durante il countdown mostriamo solo l'overlay
   if (state.countdownActive) {
@@ -131,6 +132,8 @@ function updateLogic(songTime, now) {
       comboMgr.registerMiss();
       flashHit(MISS, "miss");
       updateLife();
+      // ** ATTIVA VIBRAZIONE **
+      state.vibrateUntil = performance.now() + 100; // 100 ms vibrazione
     }
   }
 
@@ -149,10 +152,19 @@ function updateLogic(songTime, now) {
 
 /** DRAW FRAME */
 function drawFrame(songTime) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // reset trasformazioni
+
+  // ** APPLICA SHAKE SE ATTIVO **
+  if (state.vibrateUntil && state.vibrateUntil > performance.now()) {
+    const shakeX = Math.random() * 10 - 5; // -5 a +5 px
+    const shakeY = Math.random() * 10 - 5;
+    ctx.translate(shakeX, shakeY);
+  }
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const laneW = (canvas.width - (LANES - 1) * LANE_GAP) / LANES;
-  // 15.1. Sfondo lumi glow
+  // Sfondo lumi glow
   for (let i = 0; i < LANES; i++) {
     const x = i * (laneW + LANE_GAP);
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -169,7 +181,7 @@ function drawFrame(songTime) {
     ctx.fillStyle = grad;
     ctx.fillRect(x, 0, laneW, canvas.height);
   }
-  // 15.2. Bordo glow su star power
+  // Bordo glow su star power
   if (state.bonusEnd) {
     ctx.save();
     ctx.shadowBlur = 30;
@@ -179,7 +191,7 @@ function drawFrame(songTime) {
     ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
     ctx.restore();
   }
-  // 15.3 Recettori
+  // Recettori
   for (let i = 0; i < LANES; i++) {
     const x = i * (laneW + LANE_GAP) + (laneW - 80) / 2;
     ctx.save();
@@ -192,7 +204,7 @@ function drawFrame(songTime) {
     ctx.fillRect(x, RECEPTOR_Y, 80, RECEPTOR_H);
     ctx.restore();
   }
-  // 15.4 Key labels tappable
+  // Key labels
   const keyW = 80,
     keyH = 50,
     keyY = RECEPTOR_Y + RECEPTOR_H + 8;
@@ -206,7 +218,7 @@ function drawFrame(songTime) {
     ctx.fillStyle = "#fff";
     ctx.fillText(["A", "S", "D", "F", "G"][i], cx, keyY + keyH / 2);
   }
-  // 15.5 Note e particelle
+  // Note e particelle
   state.notes.forEach((n) => {
     if (!n.hit)
       n.draw(ctx, songTime, NOTE_SPEED, canvas.width, canvas.height, LANE_GAP);
@@ -217,12 +229,6 @@ function drawFrame(songTime) {
     p.draw(ctx);
     if (p.life <= 0) state.particles.splice(i, 1);
   }
-}
 
-/** RESTART MODAL */
-newBtn.addEventListener("click", () => {
-  modal.classList.add("hidden");
-  pickerLabel.style.display = "inline-flex";
-  canvas.focus();
-});
-canvas.addEventListener("blur", () => setTimeout(() => canvas.focus(), 0));
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // reset trasformazioni finali
+}
