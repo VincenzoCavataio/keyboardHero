@@ -232,3 +232,11 @@ function drawFrame(songTime) {
 
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset trasformazioni finali
 }
+
+/** RESTART MODAL */
+newBtn.addEventListener("click", () => {
+  modal.classList.add("hidden");
+  pickerLabel.style.display = "inline-flex";
+  canvas.focus();
+});
+canvas.addEventListener("blur", () => setTimeout(() => canvas.focus(), 0));
